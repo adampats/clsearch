@@ -1,0 +1,14 @@
+{
+  "name": "clsearch",
+  "version": "1.0.0",
+  "description": "craigslist searcher",
+  "main": "clsearch.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "adam",
+  "license": "MIT",
+  "dependencies": {
+    "http": "0.0.0"
+  }
+}
