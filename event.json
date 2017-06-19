@@ -1,3 +1,4 @@
 {
-  "search_string": "cta?query=audi+s4&srchType=T&auto_paint=2"
+  "all_cities": false,
+  "search": "cta?query=audi+s4&srchType=T&auto_paint=2"
 }
