@@ -1,4 +1,5 @@
 {
   "all_cities": false,
-  "search": "cta?query=audi+s4&srchType=T&auto_paint=2"
+  "all_state": ["Washington", "Oregon"],
+  "search": "cta?query=audi+s4&srchType=T&min_auto_year=2009&max_auto_year=2012&auto_paint=2"
 }
