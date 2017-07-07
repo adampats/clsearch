@@ -23,7 +23,7 @@ Copy the string after `search/`, e.g.
 
 ### Running locally
 
-Use [run_lambda](https://pypi.python.org/pypi/run-lambda) to invoke locally:
+Use [run_lambda](https://pypi.python.org/pypi/run-lambda) to invoke locally (assuming AWS credentials are already configured):
 
 ```sh
 run_lambda -f handler functions/clsearch/main.py event.json

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import re
 import logging
 import feedparser
 from urlparse import urlparse
@@ -13,7 +14,9 @@ defaults = {
     'all_cities': False,
     'all_state': None,
     'city': 'seattle',
-    'search': 'cta?query=audi+s4&srchType=T&auto_paint=2'
+    'search': 'cta?query=audi+s4&srchType=T&auto_paint=2',
+    'remove_dupes': True,
+    'debug': False
 }
 
 ### Script
@@ -23,11 +26,15 @@ logger.setLevel(logging.INFO)
 # for flattening nested lists of lists
 flatten = lambda l: [item for sublist in l for item in sublist]
 
+# remove 10-digit CL ids from a string
+rem_id = lambda s: re.sub('[0-9]{10}', '', s)
+
 def handler(event, context):
     logger.info("%s - %s", event, context)
     cl = {}
     search_scope = []
 
+    # Merge event parameters with defaults
     for key in defaults.keys():
         try:
             event[key]
@@ -36,7 +43,7 @@ def handler(event, context):
         else:
             cl[key] = event[key]
 
-    # Determine what cities to search
+    # Determine which cities to search
     if cl['city']:
         search_scope.append( [cl['city']] )
     if cl['all_state']:
@@ -47,9 +54,10 @@ def handler(event, context):
             search_scope.append( state )
 
     search_scope = flatten(search_scope)
-    logger.info("search scope: %s" % search_scope)
+    logger.info("search scope (%s cities): %s" % (
+        len(search_scope), search_scope) )
 
-    # Fetch matches from cities specified in search_scope
+    # Fetch matches from each city specified in search_scope
     records = {}
     for city in search_scope:
         url = "https://" + city + ".craigslist.org/search/" + \
@@ -57,12 +65,36 @@ def handler(event, context):
 
         data = feedparser.parse(url)
         for entry in data.entries:
-            new_record = {
+            if cl['debug']:
+                logger.info("DEBUG: match: %s" % entry['id'])
+            cur = {
                 'id': splitext( basename( urlparse(entry['id']).path ))[0],
                 'url': entry['id'],
-                'title': entry['title']
+                'title': entry['title'].rsplit(';',1)[0],
+                'summary': entry['summary']
             }
-            records[new_record['id']] = new_record
+            # Check for duplicates
+            if cl['remove_dupes']:
+                if records == {}:
+                    records[cur['id']] = cur
+                    if cl['debug']:
+                        logger.info("DEBUG: add %s because empty" % cur['id'])
+
+                dupe = False
+                for k,v in records.items():
+                    if cur['title'] == v['title'] and \
+                       rem_id(cur['summary']) == rem_id(v['summary']):
+                        dupe = True
+                        if cl['debug']:
+                            logger.info("DEBUG: DUPE %s : %s" % (k, cur['id']))
+                if dupe:
+                    continue
+                else:
+                    records[cur['id']] = cur
+                    if cl['debug']:
+                        logger.info("DEBUG: add %s because not dupe" % cur['id'])
+            else:
+                records[cur['id']] = cur
 
     if (records == {}):
         logger.info("Nothing found!")
