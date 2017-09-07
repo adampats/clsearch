@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 
+import json
+import boto3
+from botocore.exceptions import ClientError
 import re
 import logging
 import feedparser
@@ -16,7 +19,8 @@ defaults = {
     'city': 'seattle',
     'search': 'cta?query=audi+s4&srchType=T&auto_paint=2',
     'remove_dupes': True,
-    'debug': False
+    'debug': False,
+    'sns_topic_arn': ""
 }
 
 ### Script
@@ -52,7 +56,6 @@ def handler(event, context):
     if cl['all_cities']:
         for state in Locations.States.itervalues():
             search_scope.append( state )
-
     search_scope = flatten(search_scope)
     logger.info("search scope (%s cities): %s" % (
         len(search_scope), search_scope) )
@@ -96,14 +99,33 @@ def handler(event, context):
             else:
                 records[cur['id']] = cur
 
+    sns_msg = "Output: \n"
+
     if (records == {}):
         logger.info("Nothing found!")
+        sns_msg += "Nothing found!"
+    else:
+        for k,v in records.iteritems():
+            logger.info(k)
+            logger.info(v['title'])
+            logger.info(v['url'])
+            sns_msg += "\n%s\n%s\n%s\n%s\n\n" % (k, v['title'], v['url'], v['summary'])
 
-    for k,v in records.iteritems():
-        logger.info("-----")
-        logger.info(k)
-        logger.info(v['title'])
-        logger.info(v['url'])
+    try:
+        client = boto3.client('sns')
+        sns_arn = client.get_topic_attributes(TopicArn = cl['sns_topic_arn'])
+        resp = client.publish(
+            TopicArn = cl['sns_topic_arn'],
+            Subject = 'clsearch results',
+            Message = sns_msg)
+    except ClientError as e:
+        if e.response['Error']['Code'] == 'NotFound':
+            print "SNS Topic, %s, not found.  Message not sent." % \
+                cl['sns_topic_arn']
+        else:
+            print "Unexpected error: %s" % e
+
+    logger.info("SNS message published: %s" % resp)
 
 
 ### Helper Classes
